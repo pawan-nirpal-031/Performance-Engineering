@@ -63,4 +63,113 @@ void piComputationUsingReduction() {
   cout << pi;
 }
 
-int main() { piComputationUsingReduction(); }
+/*
+    # for Loop : Scheduling Policy
+    which iterations for which threads?
+
+    This can cause load imbalance. If not done properly
+    Synatx : 
+        schedule(static,<noOfConsecutiveIters>) -> Round robin policy
+
+        schedule(dynamic,<noOfConsecutiveIters>) -> First come first serve basis
+
+        schedule(auto) -> omp decides policy
+
+        schedule(runtime) -> let omp runtime decide.
+
+    
+    # Syncronization : Barrier
+        To join all threads.
+    Duing parallel execution we may need to join the threads this is where Barrier is used. There
+    are implicit and explict Barriers.
+
+    explicit barrier syntax : #pragma omp barrier
+
+    There is implict barrier at the end of each work sharing construct, like omp parallel for.
+    ex : 
+        #pragma omp for
+        for(<>;<>;<>){
+
+        } -> end of implicit barrier, here all threads will be joined.
+    
+
+    no wait : If we do not want the threads to wait for all other threads to finish at the end of an implicit barrier ( at the end of work sharing construct ) we can specify 'nowait' keyword to allow the threads to proceed without stopping at the barrier.
+    ex : 
+        #pragma omp for nowait
+        for(<>;<>;<>){
+
+        } -> no implicit barrier here as nowait is specified for this for loop.
+
+    and there is always an implicit barrier at the end of a parallel reigon
+
+
+    # master construct : a block only executed by master thread. others will skip that block.
+    syntax :
+        #pragma omp master
+        {
+            doStuff();
+        } -> no implicit barrier, since only master should do this computation.
+
+    #single construct : only one thread to execute this part, no not nececerilly master thread any one.
+    syntax : 
+        #pragma omp single
+        {
+            doStuff();
+        } -> implict barrier exists.
+
+    # sections : openmp sections.
+    This is like switch statement so one thread will pick up one section provided no true data
+    dependencies exist, and all are independent. Useful where task parallism exits, for example DAG computations, and dependency graph computations. As shown below, X,Y and Z can work
+    independently and once all are finished only then A and B can work. iw A and B depend on X,Y and Z.
+
+            X       Y       Z
+                \  |   /
+                A    B
+
+
+    syntax :
+
+    #pragma omp parallel
+    {
+        #pragma omp sections
+        {
+            #pragma omp section
+            computeX();
+            
+            #pragma omp section
+            computeY();
+            
+            #pragma omp section
+            computeZ();
+        } -> implit barrier.
+
+        #pragma omp sections
+        {
+            #pragma omp section
+            computeA();
+            
+            #pragma omp section
+            computeB;
+        }
+    }
+    # Tasks : open mp tasks.
+
+
+*/
+
+int fib(int n){
+    // A master thread enters this call, and on hitting omp task a fork of the thread is created for x and y so two threads independently compute f(n-1) and f(n-2) and on taskwait they are joined to sync.
+    int x,y; 
+    if(n<2)
+        return n;
+    #pragma omp task shared(x)
+    // this call will be invoked and no implict barrier at the end of omp task, hence some other thread will proceed with fib(n-2) computation, so both these computations can be run in parallel. Omp may delay, the task execution, it depends on omp runtime. Important Note : by Default x and y are private to tasks, explicit shared shoule be mentioned for correctness of the program. Why did we not use omp parallel here? reason each thread will redundantly try to compute both the calls f(n-1) and f(n-2) which is wasted work, what task does really well, is it assigns one thread to a call say f(n-1) and other thread to f(n-2) and both can run independently in parallel, and after both calls are done computing taskwait will provide a barrier for both the values of x and y to be consistant and correct.
+    x = fib(n-1);
+    #pragma omp task shared(y)
+    y = fib(n-2);
+    #pragma omp taskwait 
+    return x+y;
+}
+
+
+int main() { cout<<fib(10); }
